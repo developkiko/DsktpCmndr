@@ -267,8 +267,14 @@ export async function handleWriteFile(args: unknown): Promise<ServerResult> {
             const totalChunks = Math.ceil(lineCount / CHUNK_SIZE);
 
             for (let i = 0; i < lineCount; i += CHUNK_SIZE) {
-                const chunkLines = lines.slice(i, i + CHUNK_SIZE);
-                const chunkContent = chunkLines.join('\n');
+                const endIdx = Math.min(i + CHUNK_SIZE, lineCount);
+                const chunkLines = lines.slice(i, endIdx);
+                // Join with newlines, then add trailing newline for non-last chunks
+                // to prevent line concatenation at chunk boundaries
+                let chunkContent = chunkLines.join('\n');
+                if (endIdx < lineCount) {
+                    chunkContent += '\n';
+                }
                 // First chunk rewrites the file, subsequent chunks append
                 const chunkMode = i === 0 ? 'rewrite' : 'append';
                 await writeFile(parsed.path, chunkContent, chunkMode);
