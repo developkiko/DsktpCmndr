@@ -1,16 +1,16 @@
 {
-  "name": "dsktpcmndr",
+  "name": "@developkiko/desktop-commander",
   "version": "1.2.7",
   "description": "MCP server for terminal operations and file editing (fork by Kiko)",
-  "mcpName": "io.github.kiko/dsktpcmndr",
+  "mcpName": "io.github.developkiko/desktop-commander",
   "license": "MIT",
   "author": "Kiko",
-  "homepage": "https://github.com/kiko/DsktpCmndr",
+  "homepage": "https://github.com/developkiko/DsktpCmndr",
   "repository": {
     "type": "git",
-    "url": "https://github.com/kiko/DsktpCmndr.git"
+    "url": "https://github.com/developkiko/DsktpCmndr.git"
   },
-  "bugs": "https://github.com/kiko/DsktpCmndr/issues",
+  "bugs": "https://github.com/developkiko/DsktpCmndr/issues",
   "type": "module",
   "engines": {
     "node": ">=18.0.0"

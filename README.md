@@ -1,7 +1,8 @@
-# DsktpCmndr v1.2.7
-### MCP server for terminal operations and file editing — исправленная версия
+# @developkiko/desktop-commander v1.2.7
+### MCP server for terminal operations and file editing — исправленная версия с авто-чанкированием
 
-[![Kiko](https://img.shields.io/badge/by-Kiko-blue.svg)](https://github.com/kiko/DsktpCmndr)
+[![Kiko](https://img.shields.io/badge/by-Kiko-blue.svg)](https://github.com/developkiko/DsktpCmndr)
+[![npm](https://img.shields.io/badge/npm-@developkiko/desktop--commander-red.svg)](https://www.npmjs.com/package/@developkiko/desktop-commander)
 
 
 [![Discord](https://img.shields.io/badge/Join%20Discord-5865F2?style=for-the-badge&logo=discord&logoColor=white)](https://discord.gg/kQ27sNnZr7)
