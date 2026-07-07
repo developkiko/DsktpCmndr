@@ -16,7 +16,7 @@
     "node": ">=18.0.0"
   },
   "bin": {
-    "dsktpcmndr": "dist/index.js"
+    "desktop-commander": "dist/index.js"
   },
   "files": [
     "dist"
