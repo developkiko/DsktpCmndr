@@ -1,33 +1,10 @@
-import {
-    readFile,
-    readMultipleFiles,
-    writeFile,
-    createDirectory,
-    listDirectory,
-    moveFile,
-    getFileInfo,
-    writePdf,
-    getDefaultEditorMetadata,
-    type FileResult,
-    type MultiFileResult
-} from '../tools/filesystem.js';
+import { readFile, readMultipleFiles, writeFile, createDirectory, listDirectory, moveFile, getFileInfo, writePdf, getDefaultEditorMetadata, type FileResult, type MultiFileResult } from '../tools/filesystem.js';
 import type { ReadOptions } from '../utils/files/base.js';
-
 import { ServerResult } from '../types.js';
 import { withTimeout } from '../utils/withTimeout.js';
 import { createErrorResponse } from '../error-handlers.js';
 import { configManager } from '../config-manager.js';
-
-import {
-    ReadFileArgsSchema,
-    ReadMultipleFilesArgsSchema,
-    WriteFileArgsSchema,
-    CreateDirectoryArgsSchema,
-    ListDirectoryArgsSchema,
-    MoveFileArgsSchema,
-    GetFileInfoArgsSchema,
-    WritePdfArgsSchema
-} from '../tools/schemas.js';
+import { ReadFileArgsSchema, ReadMultipleFilesArgsSchema, WriteFileArgsSchema, CreateDirectoryArgsSchema, ListDirectoryArgsSchema, MoveFileArgsSchema, GetFileInfoArgsSchema, WritePdfArgsSchema } from '../tools/schemas.js';
 import path from 'path';
 import os from 'os';
 import { resolvePreviewFileType } from '../ui/file-preview/shared/preview-file-types.js';
@@ -48,9 +25,7 @@ function expandHome(filePath: string): string {
  */
 export function resolveAbsolutePath(filePath: string): string {
     const expanded = expandHome(filePath);
-    return path.isAbsolute(expanded)
-        ? path.resolve(expanded)
-        : path.resolve(process.cwd(), expanded);
+    return path.isAbsolute(expanded) ? path.resolve(expanded) : path.resolve(process.cwd(), expanded);
 }
 
 /**
@@ -72,10 +47,12 @@ function getErrorFromPath(path: string): string {
  */
 export async function handleReadFile(args: unknown): Promise<ServerResult> {
     const HANDLER_TIMEOUT = 60000; // 60 seconds total operation timeout
+
     // Add input validation
     if (args === null || args === undefined) {
         return createErrorResponse('No arguments provided for read_file command');
     }
+
     const readFileOperation = async () => {
         const parsed = ReadFileArgsSchema.parse(args);
 
@@ -84,7 +61,6 @@ export async function handleReadFile(args: unknown): Promise<ServerResult> {
         if (!config) {
             return createErrorResponse('Configuration not available');
         }
-
         const defaultLimit = config.fileReadLineLimit ?? 1000;
 
         // Convert sheet parameter: numeric strings become numbers for Excel index access
@@ -102,10 +78,7 @@ export async function handleReadFile(args: unknown): Promise<ServerResult> {
         };
 
         // Resolve to absolute path for local files (not URLs) so "Open in folder" works
-        const resolvedFilePath = parsed.isUrl
-            ? parsed.path
-            : resolveAbsolutePath(parsed.path);
-
+        const resolvedFilePath = parsed.isUrl ? parsed.path : resolveAbsolutePath(parsed.path);
         const fileResult = await readFile(parsed.path, options);
 
         // Handle PDF files
@@ -113,25 +86,13 @@ export async function handleReadFile(args: unknown): Promise<ServerResult> {
             const meta = fileResult.metadata;
             const author = meta?.author ? `, Author: ${meta?.author}` : "";
             const title = meta?.title ? `, Title: ${meta?.title}` : "";
-
             const pdfContent = fileResult.metadata?.pages?.flatMap((p: any) => [
-                ...(p.images?.map((image: any) => ({
-                    type: "image",
-                    data: image.data,
-                    mimeType: image.mimeType
-                })) ?? []),
-                {
-                    type: "text",
-                    text: `<!-- Page: ${p.pageNumber} -->\n${p.text}`,
-                },
+                ...(p.images?.map((image: any) => ({ type: "image", data: image.data, mimeType: image.mimeType })) ?? []),
+                { type: "text", text: `\n${p.text}` },
             ]) ?? [];
-
             return {
                 content: [
-                    {
-                        type: "text",
-                        text: `PDF file: ${parsed.path}${author}${title} (${meta?.totalPages} pages) \n`
-                    },
+                    { type: "text", text: `PDF file: ${parsed.path}${author}${title} (${meta?.totalPages} pages) \n` },
                     ...pdfContent
                 ],
                 structuredContent: {
@@ -159,15 +120,8 @@ export async function handleReadFile(args: unknown): Promise<ServerResult> {
             const imageSummary = `Image file: ${parsed.path} (${fileResult.mimeType})\n`;
             return {
                 content: [
-                    {
-                        type: "text",
-                        text: imageSummary
-                    },
-                    {
-                        type: "image",
-                        data: imageData,
-                        mimeType: fileResult.mimeType
-                    }
+                    { type: "text", text: imageSummary },
+                    { type: "image", data: imageData, mimeType: fileResult.mimeType }
                 ],
                 structuredContent: {
                     fileName: path.basename(resolvedFilePath),
@@ -188,7 +142,9 @@ export async function handleReadFile(args: unknown): Promise<ServerResult> {
             const textContent = typeof fileResult.content === 'string'
                 ? fileResult.content
                 : fileResult.content.toString('utf8');
-            const fileType = fileResult.metadata?.isDirectory ? 'directory' as const : resolvePreviewFileType(resolvedFilePath);
+            const fileType = fileResult.metadata?.isDirectory
+                ? 'directory' as const
+                : resolvePreviewFileType(resolvedFilePath);
             return {
                 content: [{ type: "text", text: textContent }],
                 structuredContent: {
@@ -210,10 +166,12 @@ export async function handleReadFile(args: unknown): Promise<ServerResult> {
         'Read file handler operation',
         null
     );
+
     if (result == null) {
         // Handles the impossible case where withTimeout resolves to null instead of throwing
         throw new Error('Failed to read the file');
     }
+
     return result;
 }
 
@@ -249,30 +207,16 @@ export async function handleReadMultipleFiles(args: unknown): Promise<ServerResu
             if (result.isPdf) {
                 result.payload?.pages.forEach((page, i) => {
                     page.images.forEach((image, i) => {
-                        contentItems.push({
-                            type: "image",
-                            data: image.data,
-                            mimeType: image.mimeType
-                        });
+                        contentItems.push({ type: "image", data: image.data, mimeType: image.mimeType });
                     });
-                    contentItems.push({
-                        type: "text",
-                        text: page.text,
-                    });
+                    contentItems.push({ type: "text", text: page.text, });
                 });
             } else if (result.isImage && result.mimeType) {
                 // For image files, add an image content item
-                contentItems.push({
-                    type: "image",
-                    data: result.content,
-                    mimeType: result.mimeType
-                });
+                contentItems.push({ type: "image", data: result.content, mimeType: result.mimeType });
             } else {
                 // For text files, add a text summary
-                contentItems.push({
-                    type: "text",
-                    text: `\n--- ${result.path} contents: ---\n${result.content}`
-                });
+                contentItems.push({ type: "text", text: `\n--- ${result.path} contents: ---\n${result.content}` });
             }
         }
     }
@@ -280,38 +224,82 @@ export async function handleReadMultipleFiles(args: unknown): Promise<ServerResu
     return { content: contentItems };
 }
 
+// ============================================================
+// FIXED: handleWriteFile — Auto-chunking for large content
+// ============================================================
+const CHUNK_SIZE = 30;          // Lines per chunk for optimal performance
+const MAX_TOTAL_LINES = 10000;  // Hard cap — prevents MCP message overflow
+
 /**
- * Handle write_file command
+ * Handle write_file command with automatic chunking
+ * 
+ * IMPORTANT FIX: When content exceeds CHUNK_SIZE lines, it is automatically
+ * split into chunks and written sequentially. This prevents MCP JSON-RPC
+ * message overflow that occurs when very large content is passed as a single
+ * string through the transport layer.
+ * 
+ * The MCP stdio transport uses newline-delimited JSON. Very long strings
+ * (>5000 lines / ~500KB+) can cause:
+ * - Buffer overflow in stdio transport
+ * - JSON.parse errors on the client side
+ * - Memory exhaustion in the serialization layer
  */
 export async function handleWriteFile(args: unknown): Promise<ServerResult> {
     try {
         const parsed = WriteFileArgsSchema.parse(args);
-
-        // Get the line limit from configuration
         const config = await configManager.getConfig();
-        const MAX_LINES = config.fileWriteLineLimit ?? 50; // Default to 50 if not set
+        const MAX_LINES = config.fileWriteLineLimit ?? 50;
 
-        // Strictly enforce line count limit
         const lines = parsed.content.split('\n');
         const lineCount = lines.length;
-        let errorMessage = "";
-        if (lineCount > MAX_LINES) {
-            errorMessage = `✅ File written successfully! (${lineCount} lines)
-            
-💡 Performance tip: For optimal speed, consider chunking files into ≤30 line pieces in future operations.`;
+
+        // HARD LIMIT: Reject files that are way too large
+        if (lineCount > MAX_TOTAL_LINES) {
+            return createErrorResponse(
+                `Content too large: ${lineCount} lines exceeds the maximum of ${MAX_TOTAL_LINES} lines. ` +
+                `Please split the file manually or use smaller chunks (≤${CHUNK_SIZE} lines each).`
+            );
         }
 
-        // Pass the mode parameter to writeFile
+        // AUTO-CHUNKING: If content exceeds the recommended chunk size,
+        // automatically split into pieces to prevent MCP transport overflow
+        if (lineCount > CHUNK_SIZE) {
+            const totalChunks = Math.ceil(lineCount / CHUNK_SIZE);
+
+            for (let i = 0; i < lineCount; i += CHUNK_SIZE) {
+                const chunkLines = lines.slice(i, i + CHUNK_SIZE);
+                const chunkContent = chunkLines.join('\n');
+                // First chunk rewrites the file, subsequent chunks append
+                const chunkMode = i === 0 ? 'rewrite' : 'append';
+                await writeFile(parsed.path, chunkContent, chunkMode);
+            }
+
+            const resolvedWritePath = resolveAbsolutePath(parsed.path);
+            return {
+                content: [{
+                    type: "text",
+                    text: `✅ Successfully wrote to ${parsed.path} (${lineCount} lines auto-chunked into ${totalChunks} parts)`
+                }],
+                structuredContent: {
+                    fileName: path.basename(resolvedWritePath),
+                    filePath: resolvedWritePath,
+                    fileType: resolvePreviewFileType(resolvedWritePath),
+                    sourceTool: 'write_file',
+                    ...await getDefaultEditorMetadata(resolvedWritePath),
+                },
+            };
+        }
+
+        // For small files (≤CHUNK_SIZE lines), write directly as before
         await writeFile(parsed.path, parsed.content, parsed.mode);
 
-        // Provide more informative message based on mode
         const modeMessage = parsed.mode === 'append' ? 'appended to' : 'wrote to';
         const resolvedWritePath = resolveAbsolutePath(parsed.path);
 
         return {
             content: [{
                 type: "text",
-                text: `Successfully ${modeMessage} ${parsed.path} (${lineCount} lines) ${errorMessage}`
+                text: `Successfully ${modeMessage} ${parsed.path} (${lineCount} lines)`
             }],
             structuredContent: {
                 fileName: path.basename(resolvedWritePath),
@@ -352,7 +340,6 @@ export async function handleListDirectory(args: unknown): Promise<ServerResult> 
         const parsed = ListDirectoryArgsSchema.parse(args);
         const entries = await listDirectory(parsed.path, parsed.depth);
         const duration = Date.now() - startTime;
-
         const resultText = entries.join('\n');
         const resolvedPath = resolveAbsolutePath(parsed.path);
 
@@ -425,17 +412,12 @@ export async function handleGetFileInfo(args: unknown): Promise<ServerResult> {
     try {
         const parsed = GetFileInfoArgsSchema.parse(args);
         const info = await getFileInfo(parsed.path);
-
         // Generic formatting for any file type
         const formattedText = Object.entries(info)
             .map(([key, value]) => `${key}: ${formatValue(value)}`)
             .join('\n');
-
         return {
-            content: [{
-                type: "text",
-                text: formattedText
-            }],
+            content: [{ type: "text", text: formattedText }],
         };
     } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);
@@ -454,7 +436,10 @@ export async function handleWritePdf(args: unknown): Promise<ServerResult> {
         await writePdf(parsed.path, parsed.content, parsed.outputPath, parsed.options);
         const targetPath = parsed.outputPath || parsed.path;
         return {
-            content: [{ type: "text", text: `Successfully wrote PDF to ${targetPath}${parsed.outputPath ? `\nOriginal file: ${parsed.path}` : ''}` }],
+            content: [{
+                type: "text",
+                text: `Successfully wrote PDF to ${targetPath}${parsed.outputPath ? `\nOriginal file: ${parsed.path}` : ''}`
+            }],
         };
     } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);

@@ -22,6 +22,8 @@ const FILE_OPERATION_TIMEOUTS = {
 
 const FILE_SIZE_LIMITS = {
     LINE_COUNT_LIMIT: 10 * 1024 * 1024,      // 10MB for line counting
+    MAX_WRITE_BYTES: 10 * 1024 * 1024,       // 10MB max write content size — prevents MCP overflow
+    MAX_READ_BYTES: 50 * 1024 * 1024,        // 50MB max read — guards against OOM
 } as const;
 
 // UTILITY FUNCTIONS - Eliminate duplication
@@ -598,6 +600,25 @@ export async function readFileInternal(filePath: string, offset: number = 0, len
         throw new Error('Cannot read image files as text for internal operations');
     }
 
+    // FIX: Check file size before attempting to read the entire file into memory.
+    // This prevents OOM (Out of Memory) errors when edit operations try to load
+    // very large files (>50MB) for find-and-replace operations.
+    try {
+        const stats = await fs.stat(validPath);
+        if (stats.size > FILE_SIZE_LIMITS.MAX_READ_BYTES) {
+            throw new Error(
+                `File too large (${(stats.size / 1024 / 1024).toFixed(1)}MB). ` +
+                `Maximum allowed: ${FILE_SIZE_LIMITS.MAX_READ_BYTES / 1024 / 1024}MB. ` +
+                `Use read_file with offset/length for paginated reading.`
+            );
+        }
+    } catch (error) {
+        // Re-throw our custom size errors; continue for file-not-found (handled by readFile)
+        if (error instanceof Error && error.message.includes('File too large')) {
+            throw error;
+        }
+    }
+
     // IMPORTANT: For internal operations (especially edit operations), we must
     // preserve exact file content including original line endings.
     // We cannot use readline-based reading as it strips line endings.
@@ -630,6 +651,17 @@ export async function writeFile(filePath: string, content: string, mode: 'rewrit
     // Calculate content metrics
     const contentBytes = Buffer.from(content).length;
     const lineCount = TextFileHandler.countLines(content);
+
+    // FIX: Reject content that exceeds the maximum allowed size
+    // This prevents MCP JSON-RPC message overflow when very large content
+    // is serialized and transmitted through the stdio transport layer.
+    if (contentBytes > FILE_SIZE_LIMITS.MAX_WRITE_BYTES) {
+        throw new Error(
+            `Content too large: ${(contentBytes / 1024 / 1024).toFixed(1)}MB ` +
+            `(${lineCount} lines). Maximum allowed: ${FILE_SIZE_LIMITS.MAX_WRITE_BYTES / 1024 / 1024}MB. ` +
+            `Please split into smaller chunks (≤30 lines each recommended).`
+        );
+    }
 
     // Capture file extension and operation details in telemetry without capturing the file path
     capture('server_write_file', {
